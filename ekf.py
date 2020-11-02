@@ -80,8 +80,10 @@ class Ekf(object):
 
         ########## Code starts here ##########
         # TODO: Update self.x, self.Sigma.
-        pass
-
+        S = np.matmul(np.matmul(H, self.Sigma), H.T) + Q
+        K = np.matmul(np.matmul(self.Sigma, H.T), np.linalg.inv(S))
+        self.x = self.x + K.dot(z)
+        self.Sigma = self.Sigma - np.matmul(np.matmul(K, S), K.T)
         ########## Code ends here ##########
 
     def measurement_model(self, z_raw, Q_raw):
