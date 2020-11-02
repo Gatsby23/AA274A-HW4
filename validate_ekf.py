@@ -144,7 +144,7 @@ def validate_localization_transition_model():
         g, Gx, Gu = ekf_loc.transition_model(u[i], 0.1)
         g_ref, Gx_ref, Gu_ref = validation[i]
         if np.linalg.norm(g - g_ref) + np.linalg.norm(Gx - Gx_ref) + np.linalg.norm(Gu - Gu_ref) > 1e-2:
-            print("At state x = {0} with u = {1} and dt = {2} got EkfLocalization.transition_model output:\n".format(ekf_loc.x, u, 0.1))
+            print("Iteration {0} At state x = {1} with u = {2} and dt = {3} got EkfLocalization.transition_model output:\n".format(i, ekf_loc.x, u[i], 0.1))
             print(g)
             print(Gx)
             print(Gu)
@@ -310,14 +310,15 @@ def validate_ekf_slam():
 
 if __name__ == '__main__':
     ### PROBLEM 1
-    validate_ekf_transition_update()
-    validate_ekf_localization()
+    validate_localization_transition_model()
+    # validate_ekf_transition_update()
+    #validate_ekf_localization()
 
     ## Subcomponent validation
-    validate_localization_transition_model()
-    validate_localization_compute_predicted_measurements()
-    validate_localization_compute_innovations()
+    # validate_localization_transition_model()
+    #validate_localization_compute_predicted_measurements()
+    #validate_localization_compute_innovations()
 
     ### PROBLEM 2
 
-    validate_ekf_slam()
+    #validate_ekf_slam()
