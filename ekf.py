@@ -40,9 +40,8 @@ class Ekf(object):
         g, Gx, Gu = self.transition_model(u, dt)
 
         ########## Code starts here ##########
-        # TODO: Update self.x, self.Sigma.
-
-
+        self.x = g
+        self.Sigma = np.matmul(np.matmul(Gx, self.Sigma), Gx.T) + dt*np.matmul(np.matmul(Gu, self.R), Gu.T)
         ########## Code ends here ##########
 
     def transition_model(self, u, dt):
@@ -223,10 +222,8 @@ class EkfLocalization(Ekf):
         Hx_list = []
         for j in range(self.map_lines.shape[1]):
             ########## Code starts here ##########
-            # TODO: Compute h, Hx using tb.transform_line_to_scanner_frame() for the j'th map line.
-            # HINT: This should be a single line of code.
-
-
+            line = self.map_lines[:,j]
+            h, Hx = tb.transform_line_to_scanner_frame(line, self.x, self.tf_base_to_camera, True)
             ########## Code ends here ##########
 
             h, Hx = tb.normalize_line_parameters(h, Hx)
