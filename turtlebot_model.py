@@ -124,15 +124,23 @@ def transform_line_to_scanner_frame(line, x, tf_base_to_camera, compute_jacobian
     alpha, r = line
 
     ########## Code starts here ##########
-    # TODO: Compute h, Hx
-    # HINT: Calculate the pose of the camera in the world frame (x_cam, y_cam, th_cam), a rotation matrix may be useful.
-    # HINT: To compute line parameters in the camera frame h = (alpha_in_cam, r_in_cam), 
-    #       draw a diagram with a line parameterized by (alpha,r) in the world frame and 
-    #       a camera frame with origin at x_cam, y_cam rotated by th_cam wrt to the world frame
-    # HINT: What is the projection of the camera location (x_cam, y_cam) on the line r? 
-    # HINT: To find Hx, write h in terms of the pose of the base in world frame (x_base, y_base, th_base)
+    x_cam, y_cam, th_cam = tf_base_to_camera
+    x_base, y_base, th_base = x
 
+    tf_robot_to_world = np.array([[np.cos(th_base), -np.sin(th_base), x_base],
+                                  [np.sin(th_base),  np.cos(th_base), y_base], 
+                                  [              0,                0,      1]])
+    
+    x_cam_world, y_cam_world, th_cam_world = tf_robot_to_world.dot(np.array([x_cam, y_cam, 1]))
+    
+    h = np.array([alpha - th_base - th_cam, 
+                  r - x_cam_world*np.cos(alpha) - y_cam_world*np.sin(alpha)])
 
+    Hx_23 =  (y_cam*np.cos(alpha)-x_cam*np.sin(alpha))*np.cos(th_base)
+    Hx_23 += (x_cam*np.cos(alpha)+y_cam*np.sin(alpha))*np.sin(th_base)
+
+    Hx = np.array([[             0,              0,    -1], 
+                   [-np.cos(alpha), -np.sin(alpha), Hx_23]])
     ########## Code ends here ##########
 
     if not compute_jacobian:
