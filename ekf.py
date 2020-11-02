@@ -133,9 +133,7 @@ class EkfLocalization(Ekf):
         """
 
         ########## Code starts here ##########
-        # TODO: Compute g, Gx, Gu using tb.compute_dynamics().
-
-
+        g, Gx, Gu = tb.compute_dynamics(self.x, u, dt)
         ########## Code ends here ##########
 
         return g, Gx, Gu
