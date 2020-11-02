@@ -316,7 +316,7 @@ if __name__ == '__main__':
     ## Subcomponent validation
     validate_localization_transition_model()
     validate_localization_compute_predicted_measurements()
-    #validate_localization_compute_innovations()
+    validate_localization_compute_innovations()
 
     ### PROBLEM 2
 
