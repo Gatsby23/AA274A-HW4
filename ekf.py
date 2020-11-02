@@ -40,9 +40,8 @@ class Ekf(object):
         g, Gx, Gu = self.transition_model(u, dt)
 
         ########## Code starts here ##########
-        # TODO: Update self.x, self.Sigma.
-
-
+        self.x = g
+        self.Sigma = np.matmul(np.matmul(Gx, self.Sigma), Gx.T) + dt*np.matmul(np.matmul(Gu, self.R), Gu.T)
         ########## Code ends here ##########
 
     def transition_model(self, u, dt):
