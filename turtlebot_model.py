@@ -16,11 +16,6 @@ def compute_dynamics(xvec, u, dt, compute_jacobians=True):
         Gu: np.array[3,2] - Jacobian of g with respect to u.
     """
     ########## Code starts here ##########
-    # TODO: Compute g, Gx, Gu
-    # HINT: To compute the new state g, you will need to integrate the dynamics of x, y, theta
-    # HINT: Since theta is changing with time, try integrating x, y wrt d(theta) instead of dt by introducing om
-    # HINT: When abs(om) < EPSILON_OMEGA, assume that the theta stays approximately constant ONLY for calculating the next x, y
-    #       New theta should not be equal to theta. Jacobian with respect to om is not 0.
     theta = xvec[2]
     x = xvec[0]
     y = xvec[1]
@@ -83,10 +78,6 @@ def compute_dynamics(xvec, u, dt, compute_jacobians=True):
 
     return g, Gx, Gu
 
-    
-    
-
-
 def transform_line_to_scanner_frame(line, x, tf_base_to_camera, compute_jacobian=True):
     """
     Given a single map line in the world frame, outputs the line parameters
@@ -128,7 +119,6 @@ def transform_line_to_scanner_frame(line, x, tf_base_to_camera, compute_jacobian
         return h
 
     return h, Hx
-
 
 def normalize_line_parameters(h, Hx=None):
     """
