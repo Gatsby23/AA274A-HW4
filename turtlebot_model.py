@@ -36,17 +36,17 @@ def compute_dynamics(xvec, u, dt, compute_jacobians=True):
     Gu = None
 
     if abs(w) < EPSILON_OMEGA:
-        #TODO: Add constant-angle calculations here
-        sin_t = np.sin(theta)
-        cos_t = np.cos(theta)
+        sin_t = np.sin(theta) + np.sin(theta + w*dt)
+        cos_t = np.cos(theta) + np.cos(theta + w*dt)
 
-        g_lst = [x + V*cos_t*dt, y + V*sin_t*dt, theta + w*dt]
+        g_lst = [x + V*0.5*cos_t*dt, y + V*0.5*sin_t*dt, theta + w*dt]
         g = np.array(g_lst)
 
-        Gx_lst = [[1, 0, -1.0*V*sin_t*dt], [0, 1, V*cos_t*dt], [0, 0, 1]]
+        Gx_lst = [[1, 0, -0.5*V*sin_t*dt], [0, 1, 0.5*V*cos_t*dt], [0, 0, 1]]
         Gx = np.array(Gx_lst)
 
-        Gu_lst = [[cos_t*dt, 0], [sin_t*dt, 0], [0, dt]]
+
+        Gu_lst = [[0.5*cos_t*dt, -0.5*V*np.sin(theta + w*dt)*dt*dt], [0.5*sin_t*dt, 0.5*V*np.cos(theta + w*dt)*dt*dt], [0, dt]]
         Gu = np.array(Gu_lst)
     else:
         inv_w = 1.0 / w
@@ -64,7 +64,6 @@ def compute_dynamics(xvec, u, dt, compute_jacobians=True):
         j_upper_cos = np.cos(j_theta)
         j_lower_cos = np.cos(theta)
 
-        #NOTE: if w < EPSILON_OMEGA, we need to calculate everything totally differently.  We can't integrate over theta now.  It is just V*cos(theta)*dt. This also has different jacobians
         g_lst = [x + V*inv_w*(upper_sin - lower_sin), y + V*inv_w*(-upper_cos + lower_cos), theta + w*dt]
         g = np.array(g_lst)
 
@@ -82,26 +81,8 @@ def compute_dynamics(xvec, u, dt, compute_jacobians=True):
     if not compute_jacobians:
         return g
 
-    #print ("{0}, {1}, {2}".format(g, Gx, Gu))
     return g, Gx, Gu
-'''def compute_dynamics(xvec, u, dt, compute_jacobians=True):
-    theta = xvec[2]
-    x = xvec[0]
-    y = xvec[1]
 
-    V = u[0]
-    w = u[1]
-    s_w = w
-    if abs(w) < EPSILON_OMEGA:
-        s_w = 0
-
-    n_theta = theta + w * dt
-    upper_sin
-    
-    g_lst = []
-    if not compute_jacobians:
-        return g'''
-    
     
     
 
