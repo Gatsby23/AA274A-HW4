@@ -382,11 +382,13 @@ class EkfSlam(Ekf):
             # HINT: The first two map lines (j=0,1) are fixed so the Jacobian of h wrt the alpha and r for those lines is just 0. 
             # HINT: For the other map lines (j>2), write out h in terms of alpha and r to get the Jacobian Hx.
 
-
+            line = [alpha, r]
+            h, Hx[0:2,0:3] = tb.transform_line_to_scanner_frame(line, self.x, self.tf_base_to_camera, True)
             # First two map lines are assumed fixed so we don't want to propagate
             # any measurement correction to them.
             if j >= 2:
                 Hx[:,idx_j:idx_j+2] = np.eye(2)  # FIX ME!
+                Hx[1, idx_j] = xcam*np.sin(alpha) - ycam*np.cos(alpha)
             ########## Code ends here ##########
 
             h, Hx = tb.normalize_line_parameters(h, Hx)
