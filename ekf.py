@@ -79,7 +79,6 @@ class Ekf(object):
             return
 
         ########## Code starts here ##########
-        # TODO: Update self.x, self.Sigma.
         S = np.matmul(np.matmul(H, self.Sigma), H.T) + Q
         K = np.matmul(np.matmul(self.Sigma, H.T), np.linalg.inv(S))
         self.x = self.x + K.dot(z)
@@ -151,9 +150,6 @@ class EkfLocalization(Ekf):
             return None, None, None
 
         ########## Code starts here ##########
-        # TODO: Compute z, Q.
-        # HINT: The scipy.linalg.block_diag() function may be useful.
-        # HINT: A list can be unpacked using the * (splat) operator. 
         z = np.concatenate(v_list, axis=0)
         Q = scipy.linalg.block_diag(*Q_list)
         H = np.concatenate(H_list, axis=0)
@@ -196,13 +192,6 @@ class EkfLocalization(Ekf):
         hs, Hs = self.compute_predicted_measurements()
 
         ########## Code starts here ##########
-        # TODO: Compute v_list, Q_list, H_list
-        # HINT: hs contains the J predicted lines, z_raw contains the I observed lines
-        # HINT: To calculate the innovation for alpha, use angle_diff() instead of plain subtraction
-        # HINT: Optionally, efficiently calculate all the innovations in a matrix V of shape [I, J, 2]. np.expand_dims() and np.dstack() may be useful.
-        # HINT: For each of the I observed lines, 
-        #       find the closest predicted line and the corresponding minimum Mahalanobis distance
-        #       if the minimum distance satisfies the gating criteria, add corresponding entries to v_list, Q_list, H_list
         I = z_raw.shape[1]
         v_list, Q_list, H_list = [], [], []
         for i in range(I):
@@ -288,11 +277,10 @@ class EkfSlam(Ekf):
         Gu = np.zeros((self.x.size, 2))
 
         ########## Code starts here ##########
-        # TODO: Compute g, Gx, Gu.
-        # HINT: This should be very similar to EkfLocalization.transition_model() and take 1-5 lines of code.
-        # HINT: Call tb.compute_dynamics() with the correct elements of self.x
-
-
+        g_robot, Gx_robot, Gu_robot = tb.compute_dynamics(self.x[:3], u, dt)
+        g[0:3] = g_robot
+        Gx[0:3,0:3] = Gx_robot
+        Gu[0:3,0:2] = Gu_robot
         ########## Code ends here ##########
 
         return g, Gx, Gu
@@ -316,10 +304,9 @@ class EkfSlam(Ekf):
             return None, None, None
 
         ########## Code starts here ##########
-        # TODO: Compute z, Q, H.
-        # Hint: Should be identical to EkfLocalization.measurement_model().
-
-
+        z = np.concatenate(v_list, axis=0)
+        Q = scipy.linalg.block_diag(*Q_list)
+        H = np.concatenate(H_list, axis=0)
         ########## Code ends here ##########
 
         return z, Q, H
@@ -345,11 +332,27 @@ class EkfSlam(Ekf):
         hs, Hs = self.compute_predicted_measurements()
 
         ########## Code starts here ##########
-        # TODO: Compute v_list, Q_list, H_list.
-        # HINT: Should be almost identical to EkfLocalization.compute_innovations(). What is J now?
-        # HINT: Instead of getting world-frame line parameters from self.map_lines, you must extract them from the state self.x.
-
-
+        I = z_raw.shape[1]
+        v_list, Q_list, H_list = [], [], []
+        for i in range(I):
+            z_i = z_raw[:,i]
+            Q_i = Q_raw[i]
+            min_d = self.g**2
+            v, Q, H = None, None, None
+            for j in range(hs.shape[1]):
+                h_j = hs[:,j]
+                v_ij = np.array([angle_diff(z_i[0],h_j[0]), z_i[1]-h_j[1]])
+                S_ij = np.matmul(np.matmul(Hs[j], self.Sigma), Hs[j].T) + Q_i
+                d_ij = np.matmul(np.matmul(v_ij.T, np.linalg.inv(S_ij)), v_ij)
+                if d_ij < min_d:
+                    min_d = d_ij
+                    v = v_ij
+                    Q = Q_i
+                    H = Hs[j]
+            if v is not None:
+                v_list.append(v)
+                Q_list.append(Q)
+                H_list.append(H)
         ########## Code ends here ##########
 
         return v_list, Q_list, H_list
@@ -368,17 +371,14 @@ class EkfSlam(Ekf):
             Hx = np.zeros((2,self.x.size))
 
             ########## Code starts here ##########
-            # TODO: Compute h, Hx.
-            # HINT: Call tb.transform_line_to_scanner_frame() for the j'th map line.
-            # HINT: The first 3 columns of Hx should be populated using the same approach as in EkfLocalization.compute_predicted_measurements().
-            # HINT: The first two map lines (j=0,1) are fixed so the Jacobian of h wrt the alpha and r for those lines is just 0. 
-            # HINT: For the other map lines (j>2), write out h in terms of alpha and r to get the Jacobian Hx.
-
-
+            x_cam, y_cam, th_cam = self.tf_base_to_camera
+            line = [alpha, r]
+            h, Hx[0:2,0:3] = tb.transform_line_to_scanner_frame(line, self.x[0:3], self.tf_base_to_camera, True)
             # First two map lines are assumed fixed so we don't want to propagate
             # any measurement correction to them.
             if j >= 2:
                 Hx[:,idx_j:idx_j+2] = np.eye(2)  # FIX ME!
+                Hx[1, idx_j] = x_cam*np.sin(alpha) - y_cam*np.cos(alpha)
             ########## Code ends here ##########
 
             h, Hx = tb.normalize_line_parameters(h, Hx)
