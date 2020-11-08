@@ -59,7 +59,9 @@ class ParticleFilter(object):
         # TODO: Update self.xs.
         # Hint: Call self.transition_model().
         # Hint: You may find np.random.multivariate_normal useful.
-
+        eps = np.random.multivariate_normal(np.zeros(u.shape[0]), self.R, size=self.M) # Gaussian input noise
+        us = u + eps
+        self.xs = self.transition_model(us, dt)
 
         ########## Code ends here ##########
 
@@ -181,8 +183,13 @@ class MonteCarloLocalization(ParticleFilter):
         #       not call tb.compute_dynamics. You need to compute the idxs
         #       where abs(om) > EPSILON_OMEGA and the other idxs, then do separate 
         #       updates for them
-
-
+        n = self.M
+        g = np.zeros((n, 3))
+        for i in range(n):
+            x = self.xs[i]
+            u = us[i]
+            h = tb.compute_dynamics(x, u, dt, compute_jacobians=False)
+            g[i] = h
         ########## Code ends here ##########
 
         return g
