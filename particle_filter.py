@@ -386,16 +386,41 @@ class MonteCarloLocalization(ParticleFilter):
         #       results in a ~10x speedup.
         # Hint: For the faster solution, it does not call tb.transform_line_to_scanner_frame()
         #       or tb.normalize_line_parameters(), but reimplement these steps vectorized.       
+        
         J = self.map_lines.shape[1]
-        hs = np.empty((self.M, 2, J))
-        for i, particle in enumerate(self.xs): # for each particle
-            h = np.zeros_like(self.map_lines)
-            for j, line in enumerate(self.map_lines.T): # for each map line
-                h_col = tb.transform_line_to_scanner_frame(line, particle, self.tf_base_to_camera, False)
-                h[:,j] = tb.normalize_line_parameters(h_col)
-            hs[i] = h
-        return hs
+        # hs = np.empty((self.M, 2, J))
+        # for i, particle in enumerate(self.xs): # for each particle
+        #     h = np.zeros_like(self.map_lines)
+        #     for j, line in enumerate(self.map_lines.T): # for each map line
+        #       h_col = tb.transform_line_to_scanner_frame(line, particle, self.tf_base_to_camera, False)
+        #         h[:,j] = tb.normalize_line_parameters(h_col)
+        #     hs[i] = h
+        # return hs
 
+        hs = self.map_lines.T # (J, 2)
+        alpha, r = hs[:, 0], hs[:, 1]
+
+        # Vectorized transform_line_to_scanner_frame
+        x_cam, y_cam, th_cam = self.tf_base_to_camera
+        x_base, y_base, th_base = self.xs.T
+
+        tf_robot_to_world = np.array([[np.cos(th_base), -np.sin(th_base), x_base],
+                                      [np.sin(th_base),  np.cos(th_base), y_base], 
+                                      [              0,                0,      1]])
+        
+        x_cam_world, y_cam_world, th_cam_world = tf_robot_to_world.dot(np.array([x_cam, y_cam, 1]))
+
+
+        alpha_cam = alpha[None, :] - th_base[:, None] - th_cam
+        r_cam = (r[None, :] - x_cam_world[:, None]*np.cos(alpha)[None, :]
+                            - y_cam_world[:, None]*np.sin(alpha)[None, :])
+        
+        # Vectorized normalize_line_parameters
+        idxs = r_cam < 0
+        alpha_cam[idxs] += np.pi
+        r_cam[idxs] *= -1
+        alpha_cam = (alpha_cam + np.pi) % (2*np.pi) - np.pi
+        hs = np.array([alpha_cam, r_cam]).transpose(1, 0, 2) # (n, 2, n_lin)
         ########## Code ends here ##########
 
         return hs
