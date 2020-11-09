@@ -117,8 +117,9 @@ class ParticleFilter(object):
         #       np.searchsorted() useful. This results in a ~10x speedup.
         ws_cumsum = np.cumsum(ws)
         ws_total = ws_cumsum[-1] # last element in ws_cumsum is the overall total
-        limits = r * ws_total + np.linspace(0, ws_total, self.M, False)
-        particle_idxs = np.searchsorted(ws_cumsum, limits)
+        m = np.linspace(0, self.M, self.M, False) # 0, 1, 2, ... M-1
+        u = ws_total * (r + m/self.M)
+        particle_idxs = np.searchsorted(ws_cumsum, u)
         self.xs = xs[particle_idxs]
         self.ws = ws[particle_idxs]
         ########## Code ends here ##########
