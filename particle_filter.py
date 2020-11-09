@@ -119,10 +119,8 @@ class ParticleFilter(object):
         ws_total = ws_cumsum[-1] # last element in ws_cumsum is the overall total
         limits = r * ws_total + np.linspace(0, ws_total, self.M, False)
         particle_idxs = np.searchsorted(ws_cumsum, limits)
-        for m in range(self.M):
-            particle_idx = particle_idxs[m]
-            self.xs[m] = xs[particle_idx]
-            self.ws[m] = ws[particle_idx]
+        self.xs = xs[particle_idxs]
+        self.ws = ws[particle_idxs]
         ########## Code ends here ##########
 
     def measurement_model(self, z_raw, Q_raw):
