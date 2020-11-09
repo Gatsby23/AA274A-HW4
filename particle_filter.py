@@ -313,23 +313,50 @@ class MonteCarloLocalization(ParticleFilter):
         # Hint: For the faster solution, you might find np.expand_dims(), 
         #       np.linalg.solve(), np.meshgrid() useful.
 
+        J = self.map_lines.shape[1]
         I = z_raw.shape[1]
 
-        hs = self.compute_predicted_measurements()
+        # hs = self.compute_predicted_measurements()
+        # vs = np.empty((self.M, z_raw.shape[1], 2))
+        # for i, h in enumerate(hs):
+        #     for j in range(I):
+        #         z = z_raw[:, j]
+        #         innovations = np.zeros_like(h.T)
+        #         innovations[:, 0] = angle_diff(z[0], h[0])
+        #         innovations[:, 1] = z[1] - h[1]
+        #         # malhanobis distances
+        #         Q = Q_raw[j,:]
+        #         Q_inv = np.linalg.inv(Q)
+        #         distances = np.array([np.matmul(v.T, np.matmul(Q_inv, v)) for v in innovations])
+        #         index = np.argmin(distances)
+        #         vs[i, j] = innovations[index]
 
-        vs = np.empty((self.M, z_raw.shape[1], 2))
-        for i, h in enumerate(hs):
-            for j in range(I):
-                z = z_raw[:, j]
-                innovations = np.zeros_like(h.T)
-                innovations[:, 0] = angle_diff(z[0], h[0])
-                innovations[:, 1] = z[1] - h[1]
-                # malhanobis distances
-                Q = Q_raw[j,:]
-                Q_inv = np.linalg.inv(Q)
-                distances = np.array([np.matmul(v.T, np.matmul(Q_inv, v)) for v in innovations])
-                index = np.argmin(distances)
-                vs[i, j] = innovations[index]
+        hs = self.compute_predicted_measurements().transpose(0, 2, 1) # (M, J, 2)
+ 
+        z_matrix = z_raw.T[None, None, :, :] # (1, 1, I, 2)
+        h_matrix = hs[:, :, None, :] # (M, J, 1, 2)
+        
+        # Vectorized angle_diff
+        z_alpha = z_matrix[..., 0] % (2.*np.pi) # (M, J, I)
+        h_alpha = h_matrix[..., 0] % (2.*np.pi)
+        angle_diffs = z_alpha - h_alpha 
+        idxs = np.pi < angle_diffs
+        signs = 2 * (angle_diffs[idxs] < 0) - 1
+        angle_diffs[idxs] += signs * 2. * np.pi
+        innovations_alpha = angle_diffs
+
+        innovations_r = z_matrix[..., 1] - h_matrix[..., 1]
+        innovations = np.stack((innovations_alpha, innovations_r), axis=3)
+
+        v = innovations[..., None] # (M, J, I, 2, 1)
+        Q_inv = np.linalg.inv(Q_raw)[None, None, :, :, :] # (1, 1, I, 2, 2)
+
+        d_matrix = np.matmul(np.matmul(v.transpose(0, 1, 2, 4, 3), Q_inv), v) # (M, J, I, 1, 1)
+        d_matrix = d_matrix.reshape((self.M, J, I))  # (M, J, I)
+
+        d_argmin = np.argmin(d_matrix, axis=1)[:, None, :, None] # (M, 1, I, 1)
+        vs = np.take_along_axis(innovations, d_argmin, axis=1) # (M, 1, I, 2)
+        vs = vs.reshape((self.M, I, 2)) # (M, I, 2)
         ########## Code ends here ##########
 
         # Reshape [M x I x 2] array to [M x 2I]
