@@ -59,9 +59,10 @@ class ParticleFilter(object):
         # TODO: Update self.xs.
         # Hint: Call self.transition_model().
         # Hint: You may find np.random.multivariate_normal useful.
+        dt = np.array(dt).astype(np.float64)
         eps = np.random.multivariate_normal(np.zeros(u.shape[0]), self.R*dt, size=self.M) # Gaussian input noise
         us = u[None,:] + eps
-        self.xs = self.transition_model(us, dt).astype(np.float64)
+        self.xs = self.transition_model(us, dt)
         ########## Code ends here ##########
 
     def transition_model(self, us, dt):
