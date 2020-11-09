@@ -59,8 +59,9 @@ class ParticleFilter(object):
         # TODO: Update self.xs.
         # Hint: Call self.transition_model().
         # Hint: You may find np.random.multivariate_normal useful.
-
-
+        eps = np.random.multivariate_normal(np.zeros(u.shape[0]), self.R, size=self.M) # Gaussian input noise
+        us = u + eps
+        self.xs = self.transition_model(us, dt)
         ########## Code ends here ##########
 
     def transition_model(self, us, dt):
@@ -114,8 +115,14 @@ class ParticleFilter(object):
         # Hint: To maximize speed, try to implement the resampling algorithm
         #       without for loops. You may find np.linspace(), np.cumsum(), and
         #       np.searchsorted() useful. This results in a ~10x speedup.
-
-
+        ws_cumsum = np.cumsum(ws)
+        ws_total = ws_cumsum[-1] # last element in ws_cumsum is the overall total
+        limits = r * ws_total + np.linspace(0, ws_total, self.M, False)
+        particle_idxs = np.searchsorted(ws_cumsum, limits)
+        for m in range(self.M):
+            particle_idx = particle_idxs[m]
+            self.xs[m] = xs[particle_idx]
+            self.ws[m] = ws[particle_idx]
         ########## Code ends here ##########
 
     def measurement_model(self, z_raw, Q_raw):
@@ -181,8 +188,12 @@ class MonteCarloLocalization(ParticleFilter):
         #       not call tb.compute_dynamics. You need to compute the idxs
         #       where abs(om) > EPSILON_OMEGA and the other idxs, then do separate 
         #       updates for them
-
-
+        g = np.zeros((self.M, 3))
+        for i in range(self.M):
+            x = self.xs[i]
+            u = us[i]
+            h = tb.compute_dynamics(x, u, dt, compute_jacobians=False)
+            g[i] = h
         ########## Code ends here ##########
 
         return g
@@ -209,8 +220,8 @@ class MonteCarloLocalization(ParticleFilter):
         #       particles. You may find scipy.stats.multivariate_normal.pdf()
         #       useful.
         # Hint: You'll need to call self.measurement_model()
-
-
+        vs, Q = self.measurement_model(z_raw, Q_raw)
+        ws = scipy.stats.multivariate_normal.pdf(vs, mean=None, cov=Q)
         ########## Code ends here ##########
 
         self.resample(xs, ws)
@@ -234,8 +245,7 @@ class MonteCarloLocalization(ParticleFilter):
         ########## Code starts here ##########
         # TODO: Compute Q.
         # Hint: You might find scipy.linalg.block_diag() useful
-
-
+        Q = scipy.linalg.block_diag(*Q_raw)
         ########## Code ends here ##########
 
         return vs, Q
@@ -283,7 +293,23 @@ class MonteCarloLocalization(ParticleFilter):
         # Hint: For the faster solution, you might find np.expand_dims(), 
         #       np.linalg.solve(), np.meshgrid() useful.
 
+        I = z_raw.shape[1]
 
+        hs = self.compute_predicted_measurements()
+
+        vs = np.empty((self.M, z_raw.shape[1], 2))
+        for i, h in enumerate(hs):
+            for j in range(I):
+                z = z_raw[:, j]
+                innovations = np.zeros_like(h.T)
+                innovations[:, 0] = angle_diff(z[0], h[0])
+                innovations[:, 1] = z[1] - h[1]
+                # malhanobis distances
+                Q = Q_raw[j,:]
+                Q_inv = np.linalg.inv(Q)
+                distances = np.array([np.matmul(v.T, np.matmul(Q_inv, v)) for v in innovations])
+                index = np.argmin(distances)
+                vs[i, j] = innovations[index]
         ########## Code ends here ##########
 
         # Reshape [M x I x 2] array to [M x 2I]
@@ -311,8 +337,16 @@ class MonteCarloLocalization(ParticleFilter):
         #       versions of turtlebot_model functions directly here. This
         #       results in a ~10x speedup.
         # Hint: For the faster solution, it does not call tb.transform_line_to_scanner_frame()
-        #       or tb.normalize_line_parameters(), but reimplement these steps vectorized.
-
+        #       or tb.normalize_line_parameters(), but reimplement these steps vectorized.       
+        J = self.map_lines.shape[1]
+        hs = np.empty((self.M, 2, J))
+        for i, particle in enumerate(self.xs): # for each particle
+            h = np.zeros_like(self.map_lines)
+            for j, line in enumerate(self.map_lines.T): # for each map line
+                h_col = tb.transform_line_to_scanner_frame(line, particle, self.tf_base_to_camera, False)
+                h[:,j] = tb.normalize_line_parameters(h_col)
+            hs[i] = h
+        return hs
 
         ########## Code ends here ##########
 

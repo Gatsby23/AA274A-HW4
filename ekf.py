@@ -371,14 +371,23 @@ class EkfSlam(Ekf):
             Hx = np.zeros((2,self.x.size))
 
             ########## Code starts here ##########
-            x_cam, y_cam, th_cam = self.tf_base_to_camera
             line = [alpha, r]
             h, Hx[0:2,0:3] = tb.transform_line_to_scanner_frame(line, self.x[0:3], self.tf_base_to_camera, True)
+            
+            
+            x_base, y_base, th_base = self.x[0:3]
+            x_cam, y_cam, th_cam = self.tf_base_to_camera
+            tf_robot_to_world = np.array([[np.cos(th_base), -np.sin(th_base), x_base],
+                                          [np.sin(th_base),  np.cos(th_base), y_base], 
+                                          [              0,                0,      1]])
+    
+            x_cam_world, y_cam_world, th_cam_world = tf_robot_to_world.dot(np.array([x_cam, y_cam, 1]))
+            
             # First two map lines are assumed fixed so we don't want to propagate
             # any measurement correction to them.
             if j >= 2:
-                Hx[:,idx_j:idx_j+2] = np.eye(2)  # FIX ME!
-                Hx[1, idx_j] = x_cam*np.sin(alpha) - y_cam*np.cos(alpha)
+                Hx[:,idx_j:idx_j+2] = np.eye(2)
+                Hx[1, idx_j] = x_cam_world*np.sin(alpha) - y_cam_world*np.cos(alpha)
             ########## Code ends here ##########
 
             h, Hx = tb.normalize_line_parameters(h, Hx)
