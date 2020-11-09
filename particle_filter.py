@@ -61,7 +61,7 @@ class ParticleFilter(object):
         # Hint: You may find np.random.multivariate_normal useful.
         eps = np.random.multivariate_normal(np.zeros(u.shape[0]), self.R*dt, size=self.M) # Gaussian input noise
         us = u[None,:] + eps
-        self.xs = self.transition_model(us, dt)
+        self.xs = self.transition_model(us, dt).astype(np.float64)
         ########## Code ends here ##########
 
     def transition_model(self, us, dt):
@@ -188,11 +188,32 @@ class MonteCarloLocalization(ParticleFilter):
         #       where abs(om) > EPSILON_OMEGA and the other idxs, then do separate 
         #       updates for them
         g = np.zeros((self.M, 3))
-        for i in range(self.M):
-            x = self.xs[i]
-            u = us[i]
-            h = tb.compute_dynamics(x, u, dt, compute_jacobians=False)
-            g[i] = h
+        theta = self.xs[...,2]
+        x = self.xs[...,0]
+        y = self.xs[...,1]
+        V = us[...,0]
+        w = us[...,1]
+        s_w = w
+
+        sin_t = np.sin(theta) + np.sin(theta + w*dt)
+        cos_t = np.cos(theta) + np.cos(theta + w*dt)
+        g1 = np.stack([x + V*0.5*cos_t*dt, y + V*0.5*sin_t*dt, theta + w*dt], -1)
+
+        inv_w = 1.0 / np.maximum(np.abs(w),EPSILON_OMEGA)*np.sign(w)
+        n_theta = theta + s_w * dt
+        upper_sin = np.sin(n_theta)
+        lower_sin = np.sin(theta)
+        upper_cos = np.cos(n_theta)
+        lower_cos = np.cos(theta)
+        g2 = np.stack([x + V*inv_w*(upper_sin - lower_sin), y + V*inv_w*(-upper_cos + lower_cos), theta + w*dt], -1)
+
+        g = np.where(np.abs(w[:,None])<EPSILON_OMEGA, g1, g2)
+
+        # for i in range(self.M):
+        #     x = self.xs[i]
+        #     u = us[i]
+        #     h = tb.compute_dynamics(x, u, dt, compute_jacobians=False)
+        #     g[i] = h
         ########## Code ends here ##########
 
         return g
